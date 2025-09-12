@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 extern VALUE rb_mRactorSafe;
-extern VALUE rb_cHashMap;
 
 #ifdef __cplusplus
 }
