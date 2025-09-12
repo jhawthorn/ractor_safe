@@ -3,4 +3,15 @@
 
 #include "ruby.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern VALUE rb_mRactorSafe;
+extern VALUE rb_cConcurrentHashMap;
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* RACTOR_SAFE_H */
