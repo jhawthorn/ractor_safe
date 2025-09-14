@@ -6,6 +6,7 @@ VALUE rb_mRactorSafe;
 
 // Forward declarations
 void Init_hash_map(void);
+void Init_queue(void);
 
 RUBY_FUNC_EXPORTED void
 Init_ractor_safe(void)
@@ -17,6 +18,7 @@ Init_ractor_safe(void)
     rb_mRactorSafe = rb_define_module("RactorSafe");
     
     Init_hash_map();
+    Init_queue();
 }
 
 } // extern "C"

@@ -55,12 +55,9 @@ static const rb_data_type_t hash_map_type = {
 
 static VALUE hm_alloc(VALUE klass) {
     HashMap *hm = new HashMap();
-    return TypedData_Wrap_Struct(klass, &hash_map_type, hm);
-}
-
-static VALUE hm_initialize(VALUE self) {
-    FL_SET_RAW(self, RUBY_FL_SHAREABLE);
-    return self;
+    VALUE obj = TypedData_Wrap_Struct(klass, &hash_map_type, hm);
+    FL_SET_RAW(obj, RUBY_FL_SHAREABLE);
+    return obj;
 }
 
 static VALUE hm_get(VALUE self, VALUE key) {
@@ -134,7 +131,6 @@ static VALUE hm_has_key(VALUE self, VALUE key) {
 void Init_hash_map(void) {
     rb_cHashMap = rb_define_class_under(rb_mRactorSafe, "HashMap", rb_cObject);
     rb_define_alloc_func(rb_cHashMap, hm_alloc);
-    rb_define_method(rb_cHashMap, "initialize", hm_initialize, 0);
     rb_define_method(rb_cHashMap, "[]", hm_get, 1);
     rb_define_method(rb_cHashMap, "[]=", hm_set, 2);
     rb_define_method(rb_cHashMap, "delete", hm_delete, 1);

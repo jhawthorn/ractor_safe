@@ -11,3 +11,5 @@ gem "rake", "~> 13.0"
 gem "rake-compiler", "~> 1.2.0"
 
 gem "minitest", "~> 5.16"
+
+gem "benchmark-ips", "~> 2.14"

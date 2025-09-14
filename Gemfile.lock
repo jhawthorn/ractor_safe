@@ -6,6 +6,7 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
+    benchmark-ips (2.14.0)
     date (3.4.1)
     erb (5.0.1)
     io-console (0.8.1)
@@ -35,6 +36,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  benchmark-ips (~> 2.14)
   irb
   minitest (~> 5.16)
   ractor_safe!
