@@ -112,17 +112,58 @@ class TestQueue < Minitest::Test
   
   def test_aliases
     queue = RactorSafe::Queue.new
-    
+
     # Test push aliases
     queue << :a
     queue.enq(:b)
     queue.push(:c)
-    
-    # Test pop aliases  
+
+    # Test pop aliases
     assert_equal :a, queue.deq
     assert_equal :b, queue.shift
     assert_equal :c, queue.pop
-    
+
     assert_equal queue.size, queue.length
+  end
+
+  def test_close
+    queue = RactorSafe::Queue.new
+
+    refute queue.closed?
+
+    queue.push(:item1)
+    queue.push(:item2)
+
+    queue.close
+    assert queue.closed?
+
+    # Can still pop existing items
+    assert_equal :item1, queue.pop
+    assert_equal :item2, queue.pop
+
+    # Pop returns nil when empty and closed
+    assert_nil queue.pop
+    assert_nil queue.try_pop
+
+    # Push raises after close
+    assert_raises(RactorSafe::ClosedQueueError) do
+      queue.push(:new_item)
+    end
+  end
+
+  def test_close_wakes_waiting_pop
+    queue = RactorSafe::Queue.new
+
+    # Start a ractor waiting on pop
+    popper = Ractor.new(queue) do |q|
+      q.pop
+    end
+
+    sleep 0.01 # Let popper start waiting
+
+    queue.close
+
+    # Should return nil since queue was empty when closed
+    assert_nil popper.value
   end
 end
