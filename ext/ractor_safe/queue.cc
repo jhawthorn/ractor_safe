@@ -88,24 +88,34 @@ static VALUE q_push(VALUE self, VALUE value) {
 struct pop_wait_data {
     Queue *q;
     VALUE value;
+    bool interrupted;
 };
 
 static void* q_pop_wait(void *ptr) {
     pop_wait_data *data = static_cast<pop_wait_data*>(ptr);
 
     rb_native_mutex_lock(&data->q->lock);
-    while (data->q->queue.empty() && !data->q->closed) {
+    while (data->q->queue.empty() && !data->q->closed && !data->interrupted) {
         rb_native_cond_wait(&data->q->cond, &data->q->lock);
     }
-    if (data->q->queue.empty()) {
-        data->value = Qnil;
-    } else {
+    if (!data->interrupted && !data->q->queue.empty()) {
         data->value = data->q->queue.front();
         data->q->queue.pop_front();
+    } else {
+        data->value = Qnil;
     }
     rb_native_mutex_unlock(&data->q->lock);
 
     return NULL;
+}
+
+static void q_pop_ubf(void *ptr) {
+    pop_wait_data *data = static_cast<pop_wait_data*>(ptr);
+
+    rb_native_mutex_lock(&data->q->lock);
+    data->interrupted = true;
+    rb_native_cond_broadcast(&data->q->cond);
+    rb_native_mutex_unlock(&data->q->lock);
 }
 
 static VALUE q_pop(VALUE self) {
@@ -127,8 +137,8 @@ static VALUE q_pop(VALUE self) {
     rb_native_mutex_unlock(&q->lock);
 
     // Slow path: need to wait, release GVL
-    pop_wait_data data = {q, Qnil};
-    rb_thread_call_without_gvl(q_pop_wait, &data, NULL, NULL);
+    pop_wait_data data = {q, Qnil, false};
+    rb_thread_call_without_gvl(q_pop_wait, &data, q_pop_ubf, &data);
 
     return data.value;
 }

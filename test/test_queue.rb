@@ -168,4 +168,24 @@ class TestQueue < Minitest::Test
     # Should return nil since queue was empty when closed
     assert_nil popper.value
   end
+
+  def test_pop_interruptible
+    queue = RactorSafe::Queue.new
+
+    # Start a thread waiting on pop
+    thread = Thread.new do
+      queue.pop
+    end
+    thread.report_on_exception = false
+
+    sleep 0.01 # Let thread start waiting
+
+    # Interrupt the thread
+    thread.raise(Interrupt)
+
+    # Thread should raise Interrupt
+    assert_raises(Interrupt) do
+      thread.join
+    end
+  end
 end
