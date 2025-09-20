@@ -91,6 +91,7 @@ static VALUE hm_set(VALUE self, VALUE key, VALUE value) {
 
     std::lock_guard<std::mutex> lock(hm->mutex);
     (*hm->map)[key] = value;
+    RB_OBJ_WRITTEN(self, Qundef, key);
     RB_OBJ_WRITTEN(self, Qundef, value);
 
     return value;
