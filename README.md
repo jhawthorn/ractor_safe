@@ -22,14 +22,14 @@ RactorSafe provides thread-safe, Ractor-shareable data structures:
 ### Queue
 ```ruby
 queue = RactorSafe::Queue.new
-queue.push(42)
+queue.push(42) # must be shareable
 queue.pop # => 42
 ```
 
 ### HashMap
 ```ruby
 map = RactorSafe::HashMap.new
-map[:key] = "value"
+map[:key] = "value".freeze # key/value must be shareable
 map[:key] # => "value"
 ```
 
