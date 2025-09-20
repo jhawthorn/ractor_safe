@@ -52,7 +52,7 @@ class TestQueue < Minitest::Test
   
   def test_concurrent_producers_consumers
     queue = RactorSafe::Queue.new
-    
+
     # Multiple producers
     producers = 5.times.map do |i|
       Ractor.new(queue, i) do |q, producer_id|
@@ -61,25 +61,27 @@ class TestQueue < Minitest::Test
         end
       end
     end
-    
+
     # Multiple consumers
     consumers = 3.times.map do
       Ractor.new(queue) do |q|
         results = []
         33.times do # 100 items / 3 consumers = ~33 each
-          item = q.try_pop
-          results << item if item
+          results << q.pop
         end
         results
       end
     end
-    
+
     producers.each(&:value)
-    
+
     all_results = consumers.map(&:value).flatten
-    
-    # Should have processed most/all items
-    assert all_results.length >= 90
+
+    # Should have exactly 99 items (3 consumers * 33 items)
+    assert_equal 99, all_results.length
+    assert queue.pop
+
+    assert queue.empty?
   end
   
   def test_rejects_non_shareable_values
