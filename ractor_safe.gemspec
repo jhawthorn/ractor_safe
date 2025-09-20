@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides thread-safe, Ractor-shareable data structures including Queue, HashMap, and AtomicInteger."
   spec.homepage = "https://github.com/jhawthorn/ractor_safe"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.2.0"
+  spec.required_ruby_version = ">= 3.5.a"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/jhawthorn/ractor_safe"
