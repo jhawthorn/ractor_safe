@@ -10,16 +10,9 @@ append_cflags("-fvisibility=hidden")
 # Check for C++ compiler
 have_library("stdc++")
 
-# Check for OneTBB
-unless pkg_config("tbb")
-  abort "OneTBB not found. Please install OneTBB development libraries."
-end
-
 # Check for Ractor safety functions
 have_func("rb_ext_ractor_safe", "ruby.h")
 have_func("rb_ractor_shareable_p", "ruby/ractor.h")
 
-# Enable C++17 for OneTBB
-$CXXFLAGS = "#{$CXXFLAGS} -std=c++17"
 
 create_makefile("ractor_safe/ractor_safe")

@@ -1,6 +1,7 @@
 #include "ractor_safe.h"
-#include <tbb/concurrent_hash_map.h>
+#include <unordered_map>
 #include <memory>
+#include <mutex>
 
 extern "C" {
 #ifdef HAVE_RB_RACTOR_SHAREABLE_P
@@ -10,26 +11,30 @@ extern "C" {
 VALUE rb_cHashMap;
 
 struct RubyHasher {
-    static size_t hash(VALUE key) {
+    size_t operator()(VALUE key) const {
         return NUM2SIZET(rb_hash(key));
     }
-    
-    static bool equal(VALUE a, VALUE b) {
+};
+
+struct RubyEqual {
+    bool operator()(VALUE a, VALUE b) const {
         return RTEST(rb_eql(a, b));
     }
 };
 
 struct HashMap {
-    using MapType = tbb::concurrent_hash_map<VALUE, VALUE, RubyHasher>;
+    using MapType = std::unordered_map<VALUE, VALUE, RubyHasher, RubyEqual>;
     std::unique_ptr<MapType> map;
-    
+    std::mutex mutex;
+
     HashMap() : map(std::make_unique<MapType>()) {}
 };
 
 static void hm_mark(void *ptr) {
     HashMap *hm = static_cast<HashMap*>(ptr);
     if (hm && hm->map) {
-        for (auto it = hm->map->begin(); it != hm->map->end(); ++it) {
+        std::lock_guard<std::mutex> lock(hm->mutex);
+        for (HashMap::MapType::const_iterator it = hm->map->begin(); it != hm->map->end(); ++it) {
             rb_gc_mark(it->first);
             rb_gc_mark(it->second);
         }
@@ -63,10 +68,11 @@ static VALUE hm_alloc(VALUE klass) {
 static VALUE hm_get(VALUE self, VALUE key) {
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
-    HashMap::MapType::const_accessor acc;
-    if (hm->map->find(acc, key)) {
-        return acc->second;
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
+    auto it = hm->map->find(key);
+    if (it != hm->map->end()) {
+        return it->second;
     }
     return Qnil;
 }
@@ -79,27 +85,26 @@ static VALUE hm_set(VALUE self, VALUE key, VALUE value) {
     if (!rb_ractor_shareable_p(value)) {
         rb_raise(rb_eArgError, "value must be shareable");
     }
-    
+
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
-    HashMap::MapType::accessor acc;
-    hm->map->insert(acc, key);
-    VALUE old_value = acc->second;
-    acc->second = value;
-    RB_OBJ_WRITTEN(self, old_value, value);
-    
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
+    (*hm->map)[key] = value;
+    RB_OBJ_WRITTEN(self, Qundef, value);
+
     return value;
 }
 
 static VALUE hm_delete(VALUE self, VALUE key) {
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
-    HashMap::MapType::accessor acc;
-    if (hm->map->find(acc, key)) {
-        VALUE value = acc->second;
-        hm->map->erase(acc);
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
+    auto it = hm->map->find(key);
+    if (it != hm->map->end()) {
+        VALUE value = it->second;
+        hm->map->erase(it);
         return value;
     }
     return Qnil;
@@ -108,14 +113,16 @@ static VALUE hm_delete(VALUE self, VALUE key) {
 static VALUE hm_size(VALUE self) {
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
     return SIZET2NUM(hm->map->size());
 }
 
 static VALUE hm_clear(VALUE self) {
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
     hm->map->clear();
     return Qnil;
 }
@@ -123,9 +130,9 @@ static VALUE hm_clear(VALUE self) {
 static VALUE hm_has_key(VALUE self, VALUE key) {
     HashMap *hm;
     TypedData_Get_Struct(self, HashMap, &hash_map_type, hm);
-    
-    HashMap::MapType::const_accessor acc;
-    return hm->map->find(acc, key) ? Qtrue : Qfalse;
+
+    std::lock_guard<std::mutex> lock(hm->mutex);
+    return hm->map->find(key) != hm->map->end() ? Qtrue : Qfalse;
 }
 
 void Init_hash_map(void) {
